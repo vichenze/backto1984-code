@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>WAIS</title>
+
+	<style type="text/css">
+		html {
+			background-color: darkgrey;
+			--size: 5rem;
+		}
+		body {
+			margin: 0;
+		}
+		h1 {
+			background-color: lightgrey;
+			font-size: 1.5rem;
+			margin: 0;
+			padding-top: 0.5rem;
+			text-align: center;
+		}
+		h1.success::after {
+			content: "✔️";
+			padding-left: 0.5rem;
+		}
+		.ressources {
+			display: flex;
+			flex-wrap: wrap;
+			max-width: 48rem;
+			margin: 0 auto;
+			padding: 0.5rem;
+			justify-content: center;
+		}
+		.ressources .cell {
+			margin: 0.5rem;
+		}
+		.ressources .cell.large {
+			margin: 1.5rem;
+		}
+
+		.block {
+			box-sizing: border-box;
+			height: var(--size);
+			width: var(--size);
+		}
+		.ressources .block,
+		.tested_pattern .block {
+			cursor: pointer;
+		}
+		.block[data-type="rrrr"] {
+			background-color: darkred;
+		}
+		.block[data-type="wwww"], 
+		.block[data-type="rrww"], 
+		.block[data-type="wrrw"], 
+		.block[data-type="wwrr"],
+		.block[data-type="rwwr"] {
+			background-color: white;
+		}
+
+		.block[data-type="rrww"]::after, 
+		.block[data-type="wrrw"]::after, 
+		.block[data-type="wwrr"]::after,
+		.block[data-type="rwwr"]::after {
+			content: "";
+			display: block;
+			height: 0;
+			width: 0;
+		}
+
+		.block[data-type="rrww"]::after {
+			border-top: 5rem solid darkred;
+			border-left: 5rem solid transparent;
+		}
+		.block[data-type="wrrw"]::after {
+			border-right: 5rem solid darkred;
+			border-top: 5rem solid transparent;			
+		}
+		.block[data-type="wwrr"]::after {
+			border-bottom: 5rem solid darkred;
+			border-right: 5rem solid transparent;
+		}
+		.block[data-type="rwwr"]::after {
+			border-left: 5rem solid darkred;
+			border-bottom: 5rem solid transparent;
+		}
+
+		.patterns {
+			align-items: center;
+			display: flex;
+			width: 100%;
+		}
+
+		@media (max-width: 45rem) {
+			.patterns {
+				flex-direction: column;
+			}
+		}
+
+		.tested_pattern {
+			background-color: darkgray;
+			margin: 5rem auto;
+			display: flex;
+			flex-wrap: wrap;
+		}
+		.tested_pattern[data-size="2"] {
+			height: 10rem;	
+			width: 10rem;	
+		}
+
+		.cell {
+			box-sizing: border-box;
+			border: 1px solid lightgray;
+			height: 5rem;
+			width: 5rem;
+		}
+		.cell.over, 
+		.cell.fullfilled.over,
+		.block.over {
+			border: 2px dashed;
+		}
+		.cell.fullfilled {
+			border: none;
+		}
+
+		.expected_pattern {
+			background-color: white;
+			display: flex;
+			flex-wrap: wrap;
+			margin: 5rem auto;
+		}
+
+		.pattern_wrapper {
+			background-color: lightgrey;
+			width: 100%;
+			display: flex;
+			align-items: center;
+		}
+
+		.diamond {
+			will-change: transform;
+			backface-visibility: hidden;
+			transform: rotate(45deg);
+		}
+
+		.diamond .diamond {
+			transform: rotate(0deg);
+		}
+
+		.ressources .cell {
+			border: none;
+			margin: 0.5rem;
+		}
+
+		.next::after {
+			content: ">";
+		}
+		.previous::after {
+			content: "<";
+		}
+		.next, 
+		.previous {
+			text-decoration: none;
+			color: darkred;
+		}
+		.next::after, 
+		.previous::after {
+			display: block;
+			font-size: 2rem;
+		}
+
+		.ghost {
+			position: absolute;
+			left: 100vw;
+		}
+
+		.hidden {
+			visibility: hidden;
+		}
+
+	</style>
+</head>
+<body>
+	<h1>Exercice <span>0</span></h1>
+	<div class="pattern_wrapper">
+		<a href="#" class="previous hidden"></a>
+		<div class="patterns">
+			<div class="expected_pattern"></div>
+			<div class="tested_pattern"></div>
+		</div>
+		<a href="#" class="next"></a>
+	</div>
+
+	<div class="ressources_wrapper">
+		<div class="ressources"></div>
+	</div>
+
+
+	<script type="text/javascript">
+		let draggedBlock;
+		let draggedGhost;
+		let indexModel = 0;
+		let isDiamond = false;
+		const testedPattern = document.querySelector('.tested_pattern');
+		const ressources = document.querySelector('.ressources');
+		const nextButton = document.querySelector('.next')
+		const previousButton = document.querySelector('.previous')
+		const SIZE = 5;
+		
+		document.addEventListener("dragstart", function( event ) {
+      draggedBlock = event.target;      
+			event.target.classList.add('fullfilled');
+
+			draggedGhost = draggedBlock.cloneNode(true);
+			draggedGhost.classList.add('ghost');
+			document.querySelector('body').appendChild(draggedGhost);
+
+			event.dataTransfer.setDragImage(draggedGhost, 50, 50);
+  	});
+		testedPattern.addEventListener('dragover', function (event) {
+			event.preventDefault();
+			event.target.classList.add('over');
+		});
+		testedPattern.addEventListener('dragleave', function (event) {
+			event.preventDefault();
+			event.target.classList.remove('over');
+		});
+
+		ressources.addEventListener('dragover', function (event) {
+			event.preventDefault();
+		});
+		ressources.addEventListener('dragleave', function (event) {
+			event.preventDefault();
+		});
+
+		document.addEventListener("drop", function( event ) {
+			event.preventDefault();
+			if (event.target.classList.contains('tested_pattern')
+				|| event.target.parentNode.classList.contains('tested_pattern')
+				|| event.target.parentNode.parentNode.classList.contains('tested_pattern')) {
+				dropToTestedPattern(event.target);
+			} else {
+				backToRessources(draggedBlock);
+			}
+
+			if (draggedGhost) {
+				draggedGhost.remove()
+			}
+
+			handleSuccess();
+  	}, false);	
+
+  	document.querySelector('.tested_pattern').addEventListener('click', function(event) {
+  		if (event.target.classList.contains('block')) {
+  			backToRessources(event.target);
+  		}
+
+  		handleSuccess();
+  	});
+
+  	function dropToTestedPattern(target)
+  	{  		
+			let cell;
+
+			if (target.classList.contains('cell')) {
+				cell = target;
+			} else {
+				cell = target.parentNode;
+				backToRessources(target);
+			}
+
+			cell.classList.remove('over');
+			cell.classList.add('fullfilled');
+
+			if (draggedBlock != cell) {
+				draggedBlock.parentNode.classList.remove('fullfilled');
+				draggedBlock.parentNode.removeChild( draggedBlock );
+				cell.appendChild( draggedBlock );
+			}
+  	}
+
+  	function backToRessources(block)
+  	{
+  		clearCell(block.parentNode, block);
+
+  		block.classList.remove('over');
+  		if (isDiamond) {
+  			block.classList.add('diamond');
+  		}
+
+  		const cell = findFirstRessourcesCellAvailable();
+
+			cell.appendChild(block);
+  	}
+
+  	function clearCell(cell, block) {
+  		cell.removeChild(block);
+			cell.classList.remove('fullfilled');
+  	}
+
+
+  	function findFirstRessourcesCellAvailable()
+  	{
+  		let cells = ressources.querySelectorAll('.cell');
+
+  		for (i in cells) {
+  			if (!cells[i].hasChildNodes()) {
+  				return cells[i];
+  			}
+  		}
+  	}
+
+		const models = [
+			{
+				'size': 2,
+				'diamond': false,
+				'blocks': ['wrrw', 'wwrr', 'rrrr', 'rrrr'],
+				'ressources': ['rrww', 'wwww', 'wwrr', 'rwwr', 'wwww', 'wrrw', 'rrrr', 'wrrw', 'wwww', 'rwwr', 'rwwr', 'wwrr', 'rrww', 'rrww', 'wrrw', 'wwrr', 'rrrr', 'rrrr']
+			},
+			{
+				'size': 2,
+				'diamond': false,
+				'blocks': ['wwww', 'rwwr', 'rrrr', 'rrrr'],
+				'ressources': ['wrrw', 'wrrw', 'rrww', 'wwrr', 'wwww', 'rrrr', 'wwrr', 'wrrw', 'wwww', 'rwwr', 'rwwr', 'wwrr', 'rrww', 'rrww', 'wwww', 'rwwr', 'rrrr', 'rrrr']
+			},
+			{
+				'size': 2,
+				'diamond': false,
+				'blocks': ['wrrw', 'rrww', 'wwrr', 'rwwr'],
+				'ressources': ['wrrw', 'wrrw', 'wwww', 'wwrr', 'wwww', 'wwrr', 'rrrr', 'wwww', 'rwwr', 'rwwr', 'rrww', 'rrrr', 'rrrr', 'rrww', 'wrrw', 'rrww', 'wwrr', 'rwwr']
+			},
+			{
+				'size': 2,
+				'diamond': false,
+				'blocks': ['rrww', 'wrrw', 'rwwr', 'wwrr'],
+				'ressources': ['rwwr', 'rrrr', 'wwww', 'wwrr', 'rwwr', 'wwww', 'wwrr', 'wrrw', 'wwww', 'wrrw', 'rrrr', 'rrrr', 'rrww', 'rrww', 'rrww', 'wrrw', 'rwwr', 'wwrr']
+			},
+			{
+				'size': 2,
+				'diamond': true,
+				'blocks': ['rwwr', 'wwrr', 'wwrr', 'wrrw'],
+				'ressources': ['rrrr', 'wwww', 'rwwr', 'rrww', 'rrww', 'rrrr', 'wwww', 'wrrw', 'rwwr', 'wwrr', 'wwrr', 'wrrw']
+			},
+			{
+				'size': 2,
+				'diamond': true,
+				'blocks': [
+					'wwrr', 'wrrw', 
+					'rwwr', 'wwrr'
+				],
+				'ressources': ['rrrr', 'rwwr', 'wrrw', 'wwww', 'rrww', 'rrww', 'rrrr', 'wwww', 'wwrr', 'wrrw', 'rwwr', 'wwrr']
+			},
+			{
+				'size': 3,
+				'diamond': false,
+				'blocks': [
+					'wwrr', 'rrww', 'wwrr',
+					'rrww', 'wwrr', 'rrww',
+					'wwrr', 'rrww', 'wwrr',
+				],
+				'ressources': ['wwww', 'wwww', 'wwww', 'rrrr', 'rrrr', 'rrrr', 'wrrw', 'wrrw', 'rrww', 'wwrr', 'rrww', 'wwrr', 'rrww', 'wwrr', 'rrww', 'wwrr', 'rrww', 'wwrr']
+			},
+			{
+				'size': 3,
+				'diamond': false,
+				'blocks': [
+					'wwrr', 'wrrw', 'rwwr',
+					'rwwr', 'rrww', 'wwrr',
+					'wrrw', 'wwrr', 'rrww',
+				],
+				'ressources': ['wwww', 'wwww', 'wwww', 'rrrr', 'rrrr', 'rrrr', 'wrrw', 'rrww', 'rwwr', 'wwrr', 'wrrw', 'rwwr', 'rwwr', 'rrww', 'wwrr', 'wrrw', 'wwrr', 'rrww']
+			},
+			{
+				'size': 3,
+				'diamond': true,
+				'blocks': [
+					'wrrw', 'rrrr', 'wwrr',
+					'rrrr', 'rwwr', 'wwww',
+					'rrww', 'wwww', 'wrrw',
+				],
+				'ressources': ['wwww', 'wwww', 'rwwr', 'wrrw', 'rrrr', 'wwrr', 'rrrr', 'rwwr', 'wwww', 'rrww', 'wwww', 'wrrw']
+ 			},
+			{
+				'size': 3,
+				'diamond': true,
+				'blocks': [
+					'rrrr', 'rrrr', 'wwrr',
+					'rrrr', 'wwww', 'rwwr',
+					'rrww', 'rwwr', 'rrrr',
+				],
+				'ressources': ['wwww', 'wwww', 'wrrw', 'rrww', 'wwrr', 'rrrr', 'rrrr', 'wwrr', 'rrrr', 'wwww', 'rwwr', 'rrww', 'rwwr', 'rrrr']
+			}
+		];
+
+		start(indexModel);
+
+		function start() {
+			let model = models[indexModel];
+			isDiamond = model.diamond;
+			
+			updateTitle(indexModel);
+			createRessources(model);
+			createExpectedPattern(model);
+			createTestedPattern(model);
+		}
+
+		function updateTitle(index)
+		{
+			document.querySelector('h1 span').textContent = index+1;
+			document.querySelector('h1').classList.remove('success');
+		}
+
+		function createExpectedPattern(model)
+		{
+			let expectedPattern = document.querySelector('.expected_pattern');
+			expectedPattern.classList.remove('diamond')
+
+			if (model.diamond) {
+				expectedPattern.classList.add('diamond')
+			}
+
+			expectedPattern.style.height = String(SIZE * model.size).concat('rem');
+			expectedPattern.style.width = String(SIZE * model.size).concat('rem');
+			removeChildren(expectedPattern);
+
+			document.querySelector('.tested_pattern').setAttribute('data-size', model.size);
+			for (i in model.blocks) {
+				document.querySelector('.expected_pattern').appendChild(createBlock(model.blocks[i], false));
+			}
+		}
+
+		function createRessources(model) 
+		{
+			let blocks = model.ressources;
+			removeChildren(ressources);
+
+			for (i in blocks) {
+				let cell = document.createElement('div');
+				cell.classList.add('cell');
+				if (isDiamond) {
+					cell.classList.add('large')
+				}
+
+				block = createBlock(blocks[i], true, model.diamond);
+				cell.appendChild(block);
+
+				ressources.appendChild(cell);
+			}
+		}
+
+		function createTestedPattern(model) 
+		{
+			let testedPattern = document.querySelector('.tested_pattern');
+			testedPattern.classList.remove('diamond')
+
+			if (model.diamond) {
+				testedPattern.classList.add('diamond')
+			}
+			
+			testedPattern.style.height = String(SIZE * model.size).concat('rem');
+			testedPattern.style.width = String(SIZE * model.size).concat('rem');
+			removeChildren(testedPattern);
+
+			for (i=0; i<Math.pow(model.size, 2); i++) {
+				let cell = document.createElement('div');
+				cell.classList.add('cell');
+				testedPattern.appendChild(cell);
+			}
+		}
+
+		function createBlock(type, draggable, diamond) {
+				let block = document.createElement('div');
+				block.setAttribute('draggable', draggable);
+				block.setAttribute('data-type', type);
+				block.classList.add('block');
+				if (diamond) {
+					block.classList.add('diamond');
+				}
+
+				return block;
+		}
+
+		function removeChildren(block) {
+			while (block.firstChild) {
+				block.removeChild(block.lastChild);
+			}
+		}
+
+		function isTestedPatternSuccessfulyFilled()
+		{
+			const expected = models[indexModel].blocks;
+
+			const tested = Array.from(testedPattern.querySelectorAll('.block')).map(x => x.getAttribute('data-type'));
+
+			return JSON.stringify(expected) == JSON.stringify(tested);
+		}
+
+		function handleSuccess()
+		{
+			if (isTestedPatternSuccessfulyFilled()) {
+				document.querySelector('h1').classList.add('success');
+			} else {
+				document.querySelector('h1').classList.remove('success');
+			}
+		}
+
+  	nextButton.addEventListener('click', function() {
+  		indexModel = Math.min(indexModel+1, models.length-1);
+  		if (indexModel == models.length-1) {
+  			nextButton.classList.add('hidden');
+  		}
+  		previousButton.classList.remove('hidden');
+  		start();
+  	})
+  	previousButton.addEventListener('click', function() {
+  		indexModel = Math.max(indexModel-1, 0);
+  		if (indexModel == 0) {
+  			previousButton.classList.add('hidden');
+  		}
+  		nextButton.classList.remove('hidden');
+  		start();
+  	})
+
+	</script>
+</body>
+</html>
+
+
+
